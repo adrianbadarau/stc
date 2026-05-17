@@ -90,25 +90,26 @@ def train():
     # Optimizer
     optimizer = optim.AdamW(learning_rate=learning_rate)
     
-    # State containing model and optimizer
     state = [model.state, optimizer.state]
     
     # Value and grad function
     loss_and_grad_fn = nn.value_and_grad(model, loss_fn)
 
-    @mx.compile
     def step(x, y):
         loss, grads = loss_and_grad_fn(model, x, y)
         optimizer.update(model, grads)
         return loss
 
-    @mx.compile
+    step_compiled = mx.compile(step, inputs=[model, optimizer], outputs=[model, optimizer])
+
     def evaluate(data, num_batches=10):
         total_loss = 0.0
         for _ in range(num_batches):
             x, y = get_batch(data, seq_length, batch_size)
             total_loss += loss_fn(model, x, y)
         return total_loss / num_batches
+        
+    evaluate_compiled = mx.compile(evaluate, inputs=model)
 
     # Training loop
     print("Starting training...")
@@ -117,16 +118,16 @@ def train():
     for iteration in range(max_iters):
         # Evaluate performance on train and val sets
         if iteration % eval_interval == 0 or iteration == max_iters - 1:
-            train_loss = evaluate(train_data).item()
-            val_loss = evaluate(val_data).item()
+            train_loss = evaluate_compiled(train_data).item()
+            val_loss = evaluate_compiled(val_data).item()
             print(f"step {iteration}: train loss {train_loss:.4f}, val loss {val_loss:.4f}")
             
         # Sample a batch of data
         x, y = get_batch(train_data, seq_length, batch_size)
         
         # Take a step
-        loss = step(x, y)
-        mx.eval(state) # Force execution
+        loss = step_compiled(x, y)
+        mx.eval(model, optimizer, loss) # Force execution
         
     t1 = time.time()
     print(f"Training completed in {t1-t0:.2f} seconds")
