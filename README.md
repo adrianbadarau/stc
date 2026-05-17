@@ -26,6 +26,14 @@ The project is structured into five distinct phases, matching the original techn
 
 ---
 
+## 📚 Interactive Deep Dive Documentation
+
+If you want to deeply understand how this model works under the hood—including how the Query/Key/Value attention matrices affect the final model weights, how MLX computes gradients, and how the Tokenizer dictates the tensor shapes—please open the **`documentation.html`** file in your browser. 
+
+It provides an interactive, UI-rich breakdown of every single module and its mathematical relevance to the `model_weights.safetensors`.
+
+---
+
 ## Setup and Installation
 
 **Requirements:**

@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STC Transformer - Deep Code Architecture</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #050505;
+            --bg-secondary: #111111;
+            --accent-primary: #FF3366;
+            --accent-secondary: #7C3AED;
+            --text-primary: #F3F4F6;
+            --text-secondary: #9CA3AF;
+            --glass-bg: rgba(255, 255, 255, 0.02);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(124, 58, 237, 0.05), transparent 35%),
+                radial-gradient(circle at 85% 30%, rgba(255, 51, 102, 0.05), transparent 35%);
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 { font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; }
+        h1 { font-size: 3rem; margin-bottom: 0.5rem; background: linear-gradient(to right, #fff, var(--text-secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        h2 { font-size: 2.2rem; margin-bottom: 1rem; color: #fff; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;}
+        h3 { font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--accent-primary); }
+        h4 { font-size: 1.2rem; margin-bottom: 0.5rem; color: var(--text-primary); }
+        p { margin-bottom: 1.5rem; color: var(--text-secondary); font-size: 1.05rem; font-weight: 300; }
+        
+        .highlight { color: var(--accent-secondary); font-weight: 600; }
+
+        /* Layout */
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--glass-border);
+            padding: 3rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            z-index: 10;
+        }
+
+        .brand { margin-bottom: 1rem; }
+        .brand-subtitle {
+            font-size: 0.85rem;
+            color: var(--accent-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 600;
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            text-align: left;
+            padding: 1rem 1.25rem;
+            font-size: 1rem;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            font-weight: 400;
+        }
+
+        .nav-btn::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: linear-gradient(to bottom, var(--accent-primary), var(--accent-secondary));
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+            transform-origin: top;
+        }
+
+        .nav-btn:hover {
+            color: var(--text-primary);
+            background: var(--glass-bg);
+            transform: translateX(4px);
+        }
+
+        .nav-btn.active {
+            color: #fff;
+            background: var(--glass-bg);
+            font-weight: 600;
+        }
+
+        .nav-btn.active::before {
+            transform: scaleY(1);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            padding: 4rem;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        .module-section {
+            display: none;
+            animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .module-section.active { display: block; }
+
+        @keyframes slideUpFade {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Code Breakdown Layout */
+        .code-breakdown {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+            align-items: start;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        @media (max-width: 1200px) {
+            .code-breakdown {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .code-segment {
+            background: #0d0d12;
+            height: 100%;
+            padding: 0;
+            border-right: 1px solid var(--glass-border);
+        }
+
+        .code-header {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .mac-dots { display: flex; gap: 6px; }
+        .mac-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .mac-dot.red { background: #FF5F56; }
+        .mac-dot.yellow { background: #FFBD2E; }
+        .mac-dot.green { background: #27C93F; }
+
+        pre {
+            padding: 1.5rem;
+            margin: 0;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #E5E7EB;
+            line-height: 1.6;
+            white-space: pre-wrap; /* Wrap long code lines */
+        }
+
+        .keyword { color: #FF7B72; }
+        .function { color: #D2A8FF; }
+        .string { color: #A5D6FF; }
+        .comment { color: #8B949E; }
+        .number { color: #79C0FF; }
+        .class { color: #FFA657; }
+
+        .explanation-segment {
+            padding: 2rem;
+        }
+
+        .explanation-segment h4 {
+            color: var(--accent-primary);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .weight-relevance {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: rgba(124, 58, 237, 0.1);
+            border-left: 4px solid var(--accent-secondary);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .weight-relevance h5 {
+            color: var(--accent-secondary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .weight-relevance p {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .file-intro {
+            margin-bottom: 3rem;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-subtitle">Deep Dive</div>
+                <h2 style="font-size: 1.5rem; margin:0; border:none; padding:0;">STC Engine</h2>
+            </div>
+            
+            <nav class="nav-menu" id="nav-menu">
+                <button class="nav-btn active" data-target="model">01. Transformer (Model)</button>
+                <button class="nav-btn" data-target="training">02. Train (Optimizer)</button>
+                <button class="nav-btn" data-target="inference">03. Generate (Inference)</button>
+                <button class="nav-btn" data-target="tokenizer">04. BPE (Tokenizer)</button>
+                <button class="nav-btn" data-target="scraper">05. Scraper (Data)</button>
+            </nav>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+
+            <!-- MODEL SECTION -->
+            <section id="model" class="module-section active">
+                <div class="brand-subtitle">transformer.py</div>
+                <h1>Transformer Architecture</h1>
+                <p class="file-intro">This is the brain of the LLM. It defines the mathematical structure where the learned matrices (weights) reside. Using Apple's MLX (<code>mlx.nn</code>), it implements the standard Decoder-Only Transformer architecture.</p>
+
+                <!-- QKV Projections -->
+                <div class="code-breakdown">
+                    <div class="code-segment">
+                        <div class="code-header">
+                            <div class="mac-dots"><div class="mac-dot red"></div><div class="mac-dot yellow"></div><div class="mac-dot green"></div></div>
+                        </div>
+<pre><span class="keyword">class</span> <span class="class">SelfAttention</span>(nn.Module):
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, embed_size, heads):
+        ...
+        self.q_proj = nn.Linear(embed_size, embed_size, bias=<span class="keyword">False</span>)
+        self.k_proj = nn.Linear(embed_size, embed_size, bias=<span class="keyword">False</span>)
+        self.v_proj = nn.Linear(embed_size, embed_size, bias=<span class="keyword">False</span>)
+        self.fc_out = nn.Linear(embed_size, embed_size)</pre>
+                    </div>
+                    <div class="explanation-segment">
+                        <h4>Query, Key, and Value Projections</h4>
+                        <p><strong>What it does:</strong> These instantiate linear transformation layers (matrix multiplications). An incoming character's embedding is multiplied by these matrices to produce three different vectors: a Query (what am I looking for?), a Key (what do I contain?), and a Value (what information do I pass on?).</p>
+                        
+                        <div class="weight-relevance">
+                            <h5>🧠 Relevance to LLM Weights</h5>
+                            <p>These matrices are the absolute core of the model's parameters. Initially, they are filled with random noise. During training, backpropagation adjusts these specific weights so the model learns grammatical rules, context, and associations (e.g., that the word "carbon" should strongly attend to the word "steel").</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attention Mechanism -->
+                <div class="code-breakdown">
+                    <div class="code-segment">
+                        <div class="code-header">
+                            <div class="mac-dots"><div class="mac-dot red"></div><div class="mac-dot yellow"></div><div class="mac-dot green"></div></div>
+                        </div>
+<pre><span class="comment"># Scaled dot-product attention</span>
+energy = queries @ keys.transpose(<span class="number">0</span>, <span class="number">1</span>, <span class="number">3</span>, <span class="number">2</span>) / math.sqrt(self.head_dim)
+
+<span class="keyword">if</span> mask <span class="keyword">is not None</span>:
+    energy = energy + mask
+
+attention = mx.softmax(energy, axis=<span class="number">-1</span>)
+out = attention @ values</pre>
+                    </div>
+                    <div class="explanation-segment">
+                        <h4>Attention Score Calculation & Causal Masking</h4>
+                        <p><strong>What it does:</strong> It calculates how much each character should care about every other character by multiplying Queries and Keys (dot product). The result is divided by the square root of the dimension size to stabilize gradients.</p>
+                        <p>The <code>mask</code> addition is crucial: it forces the upper triangle of the matrix to negative infinity. When <code>softmax</code> is applied, future characters get a probability of 0.</p>
+                        
+                        <div class="weight-relevance">
+                            <h5>🧠 Relevance to LLM Weights</h5>
+                            <p>Without the <code>mask</code>, the model would cheat during training by looking at the answer (the next character) before predicting it. If it cheats, the loss drops to zero instantly, but the weights never actually learn the underlying patterns of the text. The causal mask forces the weights to develop true predictive capabilities.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Language Model Wrapping -->
+                <div class="code-breakdown">
+                    <div class="code-segment">
+                        <div class="code-header">
+                            <div class="mac-dots"><div class="mac-dot red"></div><div class="mac-dot yellow"></div><div class="mac-dot green"></div></div>
+                        </div>
+<pre><span class="keyword">class</span> <span class="class">TransformerLanguageModel</span>(nn.Module):
+    <span class="keyword">def</span> <span class="function">__init__</span>(...):
+        self.word_embedding = nn.Embedding(vocab_size, embed_size)
+        self.position_embedding = nn.Embedding(max_length, embed_size)
+        self.layers = [TransformerBlock(...) <span class="keyword">for</span> _ <span class="keyword">in range</span>(num_layers)]
+        self.fc_out = nn.Linear(embed_size, vocab_size, bias=<span class="keyword">False</span>)
+
+    <span class="keyword">def</span> <span class="function">__call__</span>(self, x):
+        <span class="comment"># Create causal mask for language modeling</span>
+        mask = nn.MultiHeadAttention.create_additive_causal_mask(seq_length)
+        out = self.word_embedding(x) + self.position_embedding(positions)
+        <span class="keyword">for</span> layer <span class="keyword">in</span> self.layers: out = layer(out, mask)
+        <span class="keyword">return</span> self.fc_out(self.norm_out(out))</pre>
+                    </div>
+                    <div class="explanation-segment">
+                        <h4>Embeddings & The Decoder Stack</h4>
+                        <p><strong>What it does:</strong> This is the top-level container. <code>word_embedding</code> maps integer IDs to dense vectors. <code>position_embedding</code> gives the model a sense of order (since attention is naturally unordered). The input flows through multiple <code>TransformerBlock</code>s and finally through <code>fc_out</code> to predict the next token's probability distribution.</p>
+                        
+                        <div class="weight-relevance">
+                            <h5>🧠 Relevance to LLM Weights</h5>
+                            <p>The <code>word_embedding</code> matrix (shape: <code>[vocab_size, embed_size]</code>) contains weights that eventually cluster characters with similar functions together in vector space. <code>fc_out</code> (shape: <code>[embed_size, vocab_size]</code>) maps the complex internal representations back into our vocabulary. These boundary layers make up a significant portion of the total parameter count in the final <code>model_weights.safetensors</code>.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TRAINING SECTION -->
+            <section id="training" class="module-section">
+                <div class="brand-subtitle">train.py</div>
+                <h1>Training Pipeline</h1>
+                <p class="file-intro">This module implements the optimization loop. It takes the model, feeds it data, measures how badly it performs, and uses calculus (gradients) to mathematically adjust the model's weights to perform better next time.</p>
+
+                <!-- Batching -->
+                <div class="code-breakdown">
+                    <div class="code-segment">
+                        <div class="code-header">
+                            <div class="mac-dots"><div class="mac-dot red"></div><div class="mac-dot yellow"></div><div class="mac-dot green"></div></div>
+                        </div>
+<pre><span class="keyword">def</span> <span class="function">get_batch</span>(data, seq_length, batch_size):
+    <span class="comment"># Pick random starting points</span>
+    ix = mx.random.randint(<span class="number">0</span>, len(data) - seq_length, (batch_size,))
+    
+    <span class="comment"># Create batches of inputs (x) and targets (y)</span>
+    <span class="comment"># y is x shifted by 1</span>
+    x = mx.stack([data[i:i+seq_length] <span class="keyword">for</span> i <span class="keyword">in</span> ix.tolist()])
+    y = mx.stack([data[i+1:i+seq_length+1] <span class="keyword">for</span> i <span class="keyword">in</span> ix.tolist()])
+    <span class="keyword">return</span> x, y</pre>
+                    </div>
+                    <div class="explanation-segment">
+                        <h4>Autoregressive Data Shifting</h4>
+                        <p><strong>What it does:</strong> It slices the giant 1D tensor of our text corpus into chunks (batch size) of a specific length (256). Crucially, <code>y</code> is identical to <code>x</code>, but shifted exactly one index into the future.</p>
+                        
+                        <div class="weight-relevance">
+                            <h5>🧠 Relevance to LLM Weights</h5>
+                            <p>This explicitly defines the supervised learning task. The weights learn by trying to make the model output <code>y</code> when given <code>x</code>. If the sequence <code>x</code> is "The high-carbon stee", the target <code>y</code> at the last position is "l". The weights are penalized if they predict "q" instead of "l".</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loss & Grad -->
+                <div class="code-breakdown">
+                    <div class="code-segment">
+                        <div class="code-header">
+                            <div class="mac-dots"><div class="mac-dot red"></div><div class="mac-dot yellow"></div><div class="mac-dot green"></div></div>
+                        </div>
+<pre><span class="keyword">def</span> <span class="function">loss_fn</span>(model, x, y):
+    logits = model(x)
+    logits = logits.reshape(<span class="number">-1</span>, vocab_size)
+    y = y.reshape(<span class="number">-1</span>)
+    <span class="keyword">return</span> mx.mean(nn.losses.cross_entropy(logits, y))
+
+<span class="comment"># Value and grad function</span>
+loss_and_grad_fn = nn.value_and_grad(model, loss_fn)
+
+<span class="keyword">def</span> <span class="function">step</span>(x, y):
+    loss, grads = loss_and_grad_fn(model, x, y)
+    optimizer.update(model, grads)
+    <span class="keyword">return</span> loss</pre>
+                    </div>
+                    <div class="explanation-segment">
+                        <h4>Cross Entropy & Automatic Differentiation</h4>
+                        <p><strong>What it does:</strong> The <code>loss_fn</code> runs the forward pass, compares the output logits to the ground-truth <code>y</code>, and calculates the Cross-Entropy loss (a measure of how "surprised" the model was by the correct answer).</p>
+                        <p><code>nn.value_and_grad</code> performs magic: it evaluates the loss, but also builds a computational graph to calculate the exact derivative (gradient) of the loss with respect to <em>every single parameter</em> in the model.</p>
+                        
+                        <div class="weight-relevance">
+                            <h5>🧠 Relevance to LLM Weights</h5>
+                            <p>The <code>optimizer.update(model, grads)</code> line is where the learning actually happens. The AdamW optimizer takes the gradients and slightly shifts all ~5 million weights in the opposite direction of the gradient, minimizing the loss for the next iteration. This turns random matrices into an intelligent text-generation engine.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- INFERENCE SECTION -->
+            <section id="inference" class="module-section">
+                <div class="brand-subtitle">generate.py</div>
+                <h1>Generation Engine</h1>
+                <p class="file-intro">This module is used after training is complete. It loads the frozen weights from disk and uses them to hallucinate new text based on a user prompt.</p>
+
+                <!-- Generation Loop -->
+                <div class="code-breakdown">
+                    <div class="code-segment">
+                        <div class="code-header">
+                            <div class="mac-dots"><div class="mac-dot red"></div><div class="mac-dot yellow"></div><div class="mac-dot green"></div></div>
+                        </div>
+<pre><span class="keyword">for</span> _ <span class="keyword">in range</span>(max_new_tokens):
+    <span class="comment"># Crop context if it gets too long</span>
+    x_cond = x <span class="keyword">if</span> x.shape[<span class="number">1</span>] <= <span class="number">256</span> <span class="keyword">else</span> x[:, -<span class="number">256</span>:]
+    
+    <span class="comment"># Forward pass & take logits at last step</span>
+    logits = model(x_cond)[:, <span class="number">-1</span>, :] / temperature
+    
+    <span class="comment"># Sample from the distribution</span>
+    probs = mx.softmax(logits, axis=<span class="number">-1</span>)
+    next_token = mx.random.categorical(logits)
+    
+    <span class="comment"># Add to input for next step</span>
+    x = mx.concatenate([x, mx.array([[next_token.item()]])], axis=<span class="number">1</span>)</pre>
+                    </div>
+                    <div class="explanation-segment">
+                        <h4>Autoregressive Sampling</h4>
+                        <p><strong>What it does:</strong> The model looks at the sequence so far (up to its max context window of 256), calculates the logits for what comes next, and isolates the very last prediction.</p>
+                        <p>It divides by <code>temperature</code>, turns it into a probability via <code>softmax</code>, and then <em>samples</em> from it (rather than just picking the absolute highest value).</p>
+                        
+                        <div class="weight-relevance">
+                            <h5>🧠 Relevance to LLM Weights</h5>
+                            <p>The weights dictate the shape of the <code>logits</code> tensor. If the weights learned well during training, the logits will place high values on mathematically logical next characters. The <code>temperature</code> parameter allows us to override the strictness of the weights: a temperature > 1 flattens the distribution, forcing the model to make "creative" (and sometimes grammatically incorrect) choices outside of what its weights prefer.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TOKENIZER SECTION -->
+            <section id="tokenizer" class="module-section">
+                <div class="brand-subtitle">bpe.py</div>
+                <h1>The Tokenizer</h1>
+                <p class="file-intro">Transformers cannot read english text; they only perform math on matrices of integers. The tokenizer defines exactly how text is mapped to those integers.</p>
+
+                <!-- Vocab Build -->
+                <div class="code-breakdown">
+                    <div class="code-segment">
+                        <div class="code-header">
+                            <div class="mac-dots"><div class="mac-dot red"></div><div class="mac-dot yellow"></div><div class="mac-dot green"></div></div>
+                        </div>
+<pre><span class="keyword">class</span> <span class="class">SimpleTokenizer</span>:
+    <span class="keyword">def</span> <span class="function">train</span>(self, text):
+        <span class="comment"># Find all unique characters</span>
+        unique_chars = sorted(list(set(text)))
+        self.vocab_size = len(unique_chars)
+        
+        <span class="comment"># Build vocabulary mapping</span>
+        self.vocab = {ch: i <span class="keyword">for</span> i, ch <span class="keyword">in</span> enumerate(unique_chars)}
+        self.inverse_vocab = {i: ch <span class="keyword">for</span> i, ch <span class="keyword">in</span> enumerate(unique_chars)}</pre>
+                    </div>
+                    <div class="explanation-segment">
+                        <h4>Character-Level Dictionary</h4>
+                        <p><strong>What it does:</strong> Iterates over the entire training corpus to find every unique symbol used (letters, numbers, punctuation, spaces). It assigns a unique integer ID to each.</p>
+                        
+                        <div class="weight-relevance">
+                            <h5>🧠 Relevance to LLM Weights</h5>
+                            <p>The <code>vocab_size</code> variable generated here directly dictates the shape of the model's first and last layers: <code>nn.Embedding(vocab_size, embed_size)</code> and <code>nn.Linear(embed_size, vocab_size)</code>. If the tokenizer misses a character during training (e.g., an emoji), the model will never create weights to represent it, and thus can never understand or generate it.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SCRAPER SECTION -->
+            <section id="scraper" class="module-section">
+                <div class="brand-subtitle">scraper.py</div>
+                <h1>Data Engineering</h1>
+                <p class="file-intro">The quality of the final model is entirely dependent on the quality of the data it learns from. This module interfaces with Wikipedia to build a hyper-specific training dataset.</p>
+
+                <!-- Data Cleaning -->
+                <div class="code-breakdown">
+                    <div class="code-segment">
+                        <div class="code-header">
+                            <div class="mac-dots"><div class="mac-dot red"></div><div class="mac-dot yellow"></div><div class="mac-dot green"></div></div>
+                        </div>
+<pre><span class="keyword">def</span> <span class="function">clean_text</span>(text):
+    <span class="comment"># Remove extra whitespace and newlines</span>
+    text = re.sub(<span class="string">r'\n+'</span>, <span class="string">'\n'</span>, text)
+    text = re.sub(<span class="string">r'\s+'</span>, <span class="string">' '</span>, text)
+    
+    <span class="comment"># Remove section headers like == See also ==</span>
+    text = re.sub(<span class="string">r'==.*?=='</span>, <span class="string">''</span>, text)
+    <span class="keyword">return</span> text.strip()</pre>
+                    </div>
+                    <div class="explanation-segment">
+                        <h4>Data Sanitization</h4>
+                        <p><strong>What it does:</strong> Uses regular expressions to strip out Wikipedia-specific markdown headers and collapse redundant whitespace.</p>
+                        
+                        <div class="weight-relevance">
+                            <h5>🧠 Relevance to LLM Weights</h5>
+                            <p>Language models are spectacular sequence memorizers. If we do not clean the text, the model weights will learn to generate `== See also ==` randomly in the middle of text, thinking it is a core grammatical structure of the English language. Clean data ensures the weights only spend their computational power learning actual linguistic and domain-specific patterns.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const sections = document.querySelectorAll('.module-section');
+
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Remove active
+                    navButtons.forEach(b => b.classList.remove('active'));
+                    sections.forEach(s => {
+                        s.classList.remove('active');
+                        // Reset animation
+                        s.style.animation = 'none';
+                        s.offsetHeight;
+                        s.style.animation = null; 
+                    });
+
+                    // Set active
+                    btn.classList.add('active');
+                    const targetId = btn.getAttribute('data-target');
+                    document.getElementById(targetId).classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
