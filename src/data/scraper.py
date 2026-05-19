@@ -108,7 +108,7 @@ def is_relevant_title(title):
         
     return True
 
-def clean_text(text):
+def format_text_as_qa(title, text):
     # Remove references/sources/external links sections at the end of the text
     end_headers = [
         "== see also ==", 
@@ -125,24 +125,52 @@ def clean_text(text):
     for line in lines:
         if line.strip().lower() in end_headers:
             break
-        # Clean section headers: "== Section Name ==" -> "Section Name"
-        if line.strip().startswith('='):
-            header_text = line.strip().strip('=').strip()
-            if header_text:
-                cleaned_lines.append(header_text)
-        else:
-            cleaned_lines.append(line)
-            
+        cleaned_lines.append(line)
+        
     text = '\n'.join(cleaned_lines)
     
-    # Replace multiple newlines with single newline
-    text = re.sub(r'\n+', '\n', text)
-    # Replace tabs/multiple spaces with single space, keeping newlines
-    text = re.sub(r'[ \t\r\f\v]+', ' ', text)
+    # Parse text into sections matching == Section Name ==
+    pattern = r'^(={2,6})\s*(.*?)\s*\1\s*$'
     
-    # Strip whitespace from the beginning and end of each line, keep non-empty
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    return '\n'.join(lines)
+    sections = []
+    current_section_title = "Introduction"
+    current_section_lines = []
+    
+    for line in text.split('\n'):
+        match = re.match(pattern, line.strip())
+        if match:
+            # Save previous section if it has content
+            content = " ".join([l.strip() for l in current_section_lines if l.strip()])
+            if content:
+                sections.append((current_section_title, content))
+            
+            # Start new section
+            current_section_title = match.group(2).strip()
+            current_section_lines = []
+        else:
+            current_section_lines.append(line)
+            
+    # Save the last section
+    content = " ".join([l.strip() for l in current_section_lines if l.strip()])
+    if content:
+        sections.append((current_section_title, content))
+        
+    # Format each section into Q&A style
+    formatted_qa = []
+    for sec_title, sec_content in sections:
+        sec_content = re.sub(r'\s+', ' ', sec_content).strip()
+        if not sec_content:
+            continue
+            
+        if sec_title.lower() == "introduction":
+            prompt = f"Question: What is {title}?"
+        else:
+            prompt = f"Question: In the context of {title}, tell me about {sec_title}."
+        
+        response = f"Answer: {sec_content}"
+        formatted_qa.append(f"{prompt}\n{response}")
+        
+    return "\n\n".join(formatted_qa)
 
 def build_corpus(categories, output_file, max_pages_per_cat=50):
     print("Building expanded corpus from Wikipedia...")
@@ -188,10 +216,10 @@ def build_corpus(categories, output_file, max_pages_per_cat=50):
     
     for title in tqdm(sorted(list(unique_titles))):
         text = extract_text_from_wikipedia(title)
-        cleaned = clean_text(text)
-        if cleaned:
-            # We add double newlines to separate different articles in the final corpus
-            all_text.append(cleaned)
+        if text:
+            formatted_qa = format_text_as_qa(title, text)
+            if formatted_qa:
+                all_text.append(formatted_qa)
         time.sleep(0.5) # Polite delay (0.5s) to prevent 429
             
     final_text = "\n\n".join(all_text)

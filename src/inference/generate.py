@@ -1,4 +1,5 @@
 import mlx.core as mx
+import numpy as np
 import os
 import sys
 
@@ -8,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.transformer import TransformerLanguageModel
 from tokenizer.bpe import SimpleTokenizer
 
-def generate(model, tokenizer, prompt, max_new_tokens=500, temperature=0.8, top_k=None):
+def generate(model, tokenizer, prompt, max_new_tokens=500, temperature=0.8, seq_length=512, top_k=None):
     # Encode prompt
     context = tokenizer.encode(prompt)
     x = mx.array([context])
@@ -18,8 +19,8 @@ def generate(model, tokenizer, prompt, max_new_tokens=500, temperature=0.8, top_
     generated = []
     
     for _ in range(max_new_tokens):
-        # Crop context if it gets too long for our model (seq_length=256)
-        x_cond = x if x.shape[1] <= 256 else x[:, -256:]
+        # Crop context if it gets too long for our model (seq_length=512)
+        x_cond = x if x.shape[1] <= seq_length else x[:, -seq_length:]
         
         # Forward pass
         logits = model(x_cond)
@@ -27,18 +28,25 @@ def generate(model, tokenizer, prompt, max_new_tokens=500, temperature=0.8, top_
         # Take the logits at the last step
         logits = logits[:, -1, :] / temperature
         
-        # Apply top-k sampling if specified
+        # Apply top-k sampling: zero out all logits except top-k
         if top_k is not None:
-            # Need to implement top_k logic for MLX, for now just sample from softmax
-            pass
+            logits_np = np.array(logits.tolist())
+            top_k_indices = np.argsort(logits_np[0])[-top_k:]
+            mask = np.full(logits_np.shape, float('-inf'))
+            mask[0, top_k_indices] = logits_np[0, top_k_indices]
+            logits = mx.array(mask)
             
         # Sample from the distribution
-        probs = mx.softmax(logits, axis=-1)
         next_token = mx.random.categorical(logits)
         
         # Append to sequence
         next_token_val = next_token.item()
         generated.append(next_token_val)
+        
+        # Stop at EOS token if the tokenizer produced one
+        eos_id = tokenizer.tokenizer.token_to_id("[EOS]")
+        if eos_id is not None and next_token_val == eos_id:
+            break
         
         # Add to input for next step
         x = mx.concatenate([x, mx.array([[next_token_val]])], axis=1)
@@ -51,9 +59,9 @@ def generate(model, tokenizer, prompt, max_new_tokens=500, temperature=0.8, top_
 
 def run_inference():
     # Model parameters must match training!
-    seq_length = 256
-    embed_size = 256
-    num_layers = 6
+    seq_length = 512
+    embed_size = 384
+    num_layers = 8
     heads = 8
     forward_expansion = 4
     
@@ -94,10 +102,13 @@ def run_inference():
             break
             
         if not prompt:
-            prompt = "The high-carbon steel "
+            prompt = "How is steel made?"
+            
+        if not prompt.strip().startswith("Question:"):
+            prompt = f"Question: {prompt.strip()}\nAnswer:"
             
         print("\nGenerating...\n")
-        generate(model, tokenizer, prompt)
+        generate(model, tokenizer, prompt, seq_length=seq_length)
 
 if __name__ == "__main__":
     run_inference()

@@ -10,9 +10,9 @@ from src.tokenizer.bpe import SimpleTokenizer
 from src.inference.generate import generate
 
 def test_prompts():
-    seq_length = 256
-    embed_size = 256
-    num_layers = 6
+    seq_length = 512
+    embed_size = 384
+    num_layers = 8
     heads = 8
     forward_expansion = 4
     
@@ -41,17 +41,17 @@ def test_prompts():
     print("Model loaded successfully.\n")
     
     prompts = [
-        "To make charcoal, one must",
-        "To gather iron ore, look for",
-        "The process of building a stone tool starts with",
-        "To smelt iron, the bloomery requires"
+        "Question: How is charcoal produced?\nAnswer:",
+        "Question: Where do we find iron ore?\nAnswer:",
+        "Question: How is a basic hand axe made?\nAnswer:",
+        "Question: What does a bloomery require to smelt iron?\nAnswer:"
     ]
     
     for prompt in prompts:
         print("="*60)
         print(f"PROMPT: {prompt}")
         print("="*60)
-        generate(model, tokenizer, prompt, max_new_tokens=400, temperature=0.7)
+        generate(model, tokenizer, prompt, max_new_tokens=250, temperature=0.6, seq_length=seq_length, top_k=40)
         print("\n")
 
 if __name__ == "__main__":

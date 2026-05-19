@@ -25,16 +25,16 @@ def get_batch(data, seq_length, batch_size):
     return x, y
 
 def train():
-    # Hyperparameters
+    # Hyperparameters — ~15M parameter model
     batch_size = 32
-    seq_length = 256
-    embed_size = 256
-    num_layers = 6
+    seq_length = 512
+    embed_size = 384
+    num_layers = 8
     heads = 8
     forward_expansion = 4
     learning_rate = 3e-4
     max_iters = 5000
-    eval_interval = 200
+    eval_interval = 500
     
     # Load dataset
     data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "stc_training_data.txt")
@@ -47,7 +47,7 @@ def train():
         
     # Initialize and train tokenizer
     tokenizer = SimpleTokenizer()
-    tokenizer.train(text)
+    tokenizer.train(text, vocab_size=8000)
     
     # Save tokenizer for inference
     tokenizer_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "tokenizer.json")
@@ -115,6 +115,8 @@ def train():
     t0 = time.time()
     
     t_iter = time.time()
+    best_val_loss = float('inf')
+    model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "model_weights.safetensors")
     
     for iteration in range(max_iters):
         # Evaluate performance on train and val sets
@@ -125,6 +127,12 @@ def train():
             print(f"step {iteration}: train loss {train_loss:.4f}, val loss {val_loss:.4f} (eval took {dt:.2f}s)")
             t_iter = time.time()
             
+            # Save best model checkpoint
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                model.save_weights(model_path)
+                print(f"  ✓ New best val loss {val_loss:.4f} — checkpoint saved.")
+            
         # Sample a batch of data
         x, y = get_batch(train_data, seq_length, batch_size)
         
@@ -134,11 +142,7 @@ def train():
         
     t1 = time.time()
     print(f"Training completed in {t1-t0:.2f} seconds")
-    
-    # Save the model
-    model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "model_weights.safetensors")
-    model.save_weights(model_path)
-    print(f"Model weights saved to {model_path}")
+    print(f"Best val loss: {best_val_loss:.4f} — model saved to {model_path}")
 
 if __name__ == "__main__":
     train()
