@@ -15,8 +15,12 @@ def main():
     
     if args.action in ['scrape', 'all']:
         print("=== PHASE 1: Data Engineering ===")
-        categories = ["Swords", "Metallurgy", "Blacksmithing"]
-        build_corpus(categories, "stc_training_data.txt", max_pages_per_cat=100)
+        categories = [
+            "Mining", "Quarrying", "Clay", "Iron ores", "Lithics", "Woodworking", 
+            "Forestry", "Charcoal", "Smelting", "Charcoal ovens", "Survival skills",
+            "Swords", "Metallurgy", "Blacksmithing"
+        ]
+        build_corpus(categories, "stc_training_data.txt", max_pages_per_cat=60)
         
     if args.action in ['train', 'all']:
         print("\n=== PHASE 2-4: Tokenization & Training ===")
