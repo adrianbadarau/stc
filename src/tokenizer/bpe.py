@@ -1,44 +1,42 @@
-import json
-import os
+from tokenizers import Tokenizer
+from tokenizers.models import BPE
+from tokenizers.trainers import BpeTrainer
+from tokenizers.pre_tokenizers import ByteLevel
+from tokenizers.decoders import ByteLevel as ByteLevelDecoder
 
 class SimpleTokenizer:
-    """A basic character-level tokenizer as described in Phase 2."""
+    """A BPE Tokenizer implementing the same interface as the character-level tokenizer."""
     
     def __init__(self):
-        self.vocab = {}
-        self.inverse_vocab = {}
+        # We use ByteLevel BPE tokenizer which is standard for language models (like GPT)
+        # and guarantees that we never have out-of-vocabulary character issues.
+        self.tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
+        self.tokenizer.pre_tokenizer = ByteLevel(add_prefix_space=False)
+        self.tokenizer.decoder = ByteLevelDecoder()
         self.vocab_size = 0
         
-    def train(self, text):
-        # Find all unique characters
-        unique_chars = sorted(list(set(text)))
-        self.vocab_size = len(unique_chars)
-        
-        # Build vocabulary mapping
-        self.vocab = {ch: i for i, ch in enumerate(unique_chars)}
-        self.inverse_vocab = {i: ch for i, ch in enumerate(unique_chars)}
+    def train(self, text, vocab_size=2000):
+        # Split text into lines to avoid feeding one massive string to the trainer
+        iterator = text.split('\n')
+        trainer = BpeTrainer(
+            special_tokens=["[UNK]", "[PAD]", "[SOS]", "[EOS]"],
+            vocab_size=vocab_size
+        )
+        self.tokenizer.train_from_iterator(iterator, trainer)
+        self.vocab_size = self.tokenizer.get_vocab_size()
         
     def encode(self, text):
-        return [self.vocab.get(ch, self.vocab.get('<UNK>', 0)) for ch in text]
+        return self.tokenizer.encode(text).ids
         
     def decode(self, ids):
-        return "".join([self.inverse_vocab.get(i, '') for i in ids])
+        if isinstance(ids, int):
+            ids = [ids]
+        return self.tokenizer.decode(ids)
         
     def save(self, filepath):
-        with open(filepath, 'w') as f:
-            json.dump({
-                'vocab': self.vocab,
-                'inverse_vocab': self.inverse_vocab
-            }, f)
-            
+        self.tokenizer.save(filepath)
+        
     def load(self, filepath):
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as f:
-                data = json.load(f)
-                self.vocab = data['vocab']
-                # JSON keys are strings, convert back to integers for inverse
-                self.inverse_vocab = {int(k): v for k, v in data['inverse_vocab'].items()}
-                self.vocab_size = len(self.vocab)
+        self.tokenizer = Tokenizer.from_file(filepath)
+        self.vocab_size = self.tokenizer.get_vocab_size()
 
-# For a production LLM, BPE would be implemented here, but character-level 
-# is highly suitable for learning the architecture first.
