@@ -17,10 +17,11 @@ def get_batch(data, seq_length, batch_size):
     # Pick random starting points
     ix = mx.random.randint(0, len(data) - seq_length, (batch_size,))
     
-    # Create batches of inputs (x) and targets (y)
-    # y is x shifted by 1
-    x = mx.stack([data[i:i+seq_length] for i in ix.tolist()])
-    y = mx.stack([data[i+1:i+seq_length+1] for i in ix.tolist()])
+    # Generate index grid for vectorized gather
+    indices = ix[:, None] + mx.arange(seq_length)[None, :]
+    
+    x = data[indices]
+    y = data[indices + 1]
     return x, y
 
 def train():
@@ -33,7 +34,7 @@ def train():
     forward_expansion = 4
     learning_rate = 3e-4
     max_iters = 5000
-    eval_interval = 500
+    eval_interval = 200
     
     # Load dataset
     data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "stc_training_data.txt")
@@ -107,20 +108,22 @@ def train():
         for _ in range(num_batches):
             x, y = get_batch(data, seq_length, batch_size)
             total_loss += loss_fn(model, x, y)
-        return total_loss / num_batches
-        
-    evaluate_compiled = mx.compile(evaluate, inputs=model)
+        return (total_loss / num_batches).item()
 
     # Training loop
     print("Starting training...")
     t0 = time.time()
     
+    t_iter = time.time()
+    
     for iteration in range(max_iters):
         # Evaluate performance on train and val sets
         if iteration % eval_interval == 0 or iteration == max_iters - 1:
-            train_loss = evaluate_compiled(train_data).item()
-            val_loss = evaluate_compiled(val_data).item()
-            print(f"step {iteration}: train loss {train_loss:.4f}, val loss {val_loss:.4f}")
+            train_loss = evaluate(train_data)
+            val_loss = evaluate(val_data)
+            dt = time.time() - t_iter
+            print(f"step {iteration}: train loss {train_loss:.4f}, val loss {val_loss:.4f} (eval took {dt:.2f}s)")
+            t_iter = time.time()
             
         # Sample a batch of data
         x, y = get_batch(train_data, seq_length, batch_size)
