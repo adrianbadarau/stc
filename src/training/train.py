@@ -47,7 +47,7 @@ def train():
         
     # Initialize and train tokenizer
     tokenizer = SimpleTokenizer()
-    tokenizer.train(text, vocab_size=2000)
+    tokenizer.train(text, vocab_size=8000)
     
     # Save tokenizer for inference
     tokenizer_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "tokenizer.json")
